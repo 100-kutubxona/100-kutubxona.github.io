@@ -417,6 +417,31 @@ function createTextElement(tagName, className, value) {
   return element;
 }
 
+function appendCoverVisual(container, url, title, fallbackClass) {
+  if (!url) {
+    container.append(createTextElement('span', fallbackClass, '100'));
+    return;
+  }
+
+  const image = document.createElement('img');
+  image.src = url;
+  image.alt = 'Muqova: ' + title;
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  image.referrerPolicy = 'no-referrer';
+
+  image.addEventListener('error', () => {
+    if (!image.isConnected) return;
+
+    container.replaceChildren(
+      createTextElement('span', fallbackClass, '100')
+    );
+    container.classList.add('has-cover-fallback');
+  }, { once: true });
+
+  container.append(image);
+}
+
 function renderCatalog(books) {
   const grid = $('booksGrid');
   grid.replaceChildren();
@@ -424,23 +449,14 @@ function renderCatalog(books) {
   $('bookCount').textContent = books.length + ' ta kitob';
   $('emptyBooks').classList.toggle('is-hidden', books.length !== 0);
 
-  for (const book of books) {
+  books.forEach((book, index) => {
     const card = document.createElement('article');
     card.className = 'book-card';
+    card.style.setProperty('--card-order', String(index));
 
     const cover = document.createElement('div');
     cover.className = 'book-card-cover';
-
-    if (book.coverUrl) {
-      const image = document.createElement('img');
-      image.src = book.coverUrl;
-      image.alt = 'Muqova: ' + book.title;
-      image.loading = 'lazy';
-      image.referrerPolicy = 'no-referrer';
-      cover.append(image);
-    } else {
-      cover.append(createTextElement('span', 'book-cover-fallback', '100'));
-    }
+    appendCoverVisual(cover, book.coverUrl, book.title, 'book-cover-fallback');
 
     const content = document.createElement('div');
     content.className = 'book-card-body';
@@ -453,22 +469,35 @@ function renderCatalog(books) {
 
     const tags = document.createElement('div');
     tags.className = 'book-tags';
-    tags.append(createTextElement('span', 'book-tag', book.category));
-    tags.append(createTextElement('span', 'book-tag', book.language));
-    content.append(tags);
+
+    if (book.category) {
+      tags.append(createTextElement('span', 'book-tag', book.category));
+    }
+
+    if (book.language) {
+      tags.append(createTextElement('span', 'book-tag', book.language));
+    }
+
+    if (tags.childElementCount > 0) {
+      content.append(tags);
+    }
 
     if (book.summary) {
       content.append(createTextElement('p', 'book-card-summary', book.summary));
     }
 
-    const button = createTextElement('button', 'primary-button book-open-button', 'Kitob haqida');
+    const button = createTextElement(
+      'button',
+      'primary-button book-open-button',
+      'Kitob haqida'
+    );
     button.type = 'button';
     button.addEventListener('click', () => void openBook(book.id));
     content.append(button);
 
     card.append(cover, content);
     grid.append(card);
-  }
+  });
 }
 
 async function loadCatalog() {
@@ -527,13 +556,14 @@ async function openBook(id, updateHash = true) {
 
     $('bookDialogTitle').textContent = book.title;
     $('bookDialogMeta').textContent = [
-      book.author || 'Muallif ko‘rsatilmagan',
-      book.language,
-      book.category
+      book.category,
+      book.language
     ].filter(Boolean).join(' · ');
 
     const qrImage = $('bookQrImage');
-    qrImage.src = getApiUrl(book.qrPath || ('/api/books/' + encodeURIComponent(id) + '/qr.svg'));
+    qrImage.src = getApiUrl(
+      book.qrPath || ('/api/books/' + encodeURIComponent(id) + '/qr.svg')
+    );
     qrImage.alt = 'QR-kod: ' + book.title;
 
     const publicUrl = $('bookPublicUrl');
@@ -542,38 +572,95 @@ async function openBook(id, updateHash = true) {
 
     body.replaceChildren();
 
-    if (book.coverUrl) {
-      const cover = document.createElement('img');
-      cover.className = 'book-detail-cover';
-      cover.src = book.coverUrl;
-      cover.alt = 'Muqova: ' + book.title;
-      cover.referrerPolicy = 'no-referrer';
-      body.append(cover);
+    const profile = document.createElement('section');
+    profile.className = 'book-profile';
+
+    const coverFrame = document.createElement('div');
+    coverFrame.className = 'book-profile-cover-frame';
+    appendCoverVisual(
+      coverFrame,
+      book.coverUrl,
+      book.title,
+      'book-detail-cover-fallback'
+    );
+
+    const info = document.createElement('div');
+    info.className = 'book-profile-info';
+    info.append(createTextElement('p', 'book-profile-kicker', 'KITOB HAQIDA'));
+    info.append(createTextElement(
+      'p',
+      'book-profile-author',
+      book.author || 'Muallif ko‘rsatilmagan'
+    ));
+
+    const tags = document.createElement('div');
+    tags.className = 'book-profile-tags';
+
+    if (book.category) {
+      tags.append(createTextElement('span', 'book-profile-tag', book.category));
+    }
+
+    if (book.language) {
+      tags.append(createTextElement('span', 'book-profile-tag', book.language));
+    }
+
+    if (tags.childElementCount > 0) {
+      info.append(tags);
     }
 
     if (book.summary) {
-      body.append(createTextElement('p', 'book-detail-summary', book.summary));
+      info.append(createTextElement('p', 'book-detail-summary', book.summary));
+    } else {
+      info.append(createTextElement(
+        'p',
+        'book-profile-note',
+        'Kitob tavsifi hozircha kiritilmagan.'
+      ));
     }
 
+    const actions = document.createElement('div');
+    actions.className = 'book-profile-actions';
+
     if (book.pdfUrl) {
-      const pdfLink = createTextElement('a', 'primary-button pdf-open-link', 'PDF kitobni ochish');
+      const pdfLink = createTextElement(
+        'a',
+        'primary-button pdf-open-link',
+        'PDF kitobni ochish'
+      );
       pdfLink.href = book.pdfUrl;
       pdfLink.target = '_blank';
       pdfLink.rel = 'noopener noreferrer';
-      body.append(pdfLink);
+      actions.append(pdfLink);
     }
 
     if (book.bodyText) {
-      body.append(createTextElement('h3', 'book-text-heading', 'Kitob matni'));
-      body.append(createTextElement('pre', 'book-detail-text', book.bodyText));
+      const textLabel = createTextElement(
+        'span',
+        'book-profile-tag',
+        'Matnli nusxa mavjud'
+      );
+      actions.append(textLabel);
     }
 
-    if (!book.pdfUrl && !book.bodyText) {
-      body.append(createTextElement(
+    if (actions.childElementCount > 0) {
+      info.append(actions);
+    } else {
+      info.append(createTextElement(
         'p',
-        'muted',
+        'book-profile-note',
         'Bu kitob uchun hozircha PDF yoki matnli nusxa biriktirilmagan.'
       ));
+    }
+
+    profile.append(coverFrame, info);
+    body.append(profile);
+
+    if (book.bodyText) {
+      const reading = document.createElement('section');
+      reading.className = 'book-detail-reading';
+      reading.append(createTextElement('h3', '', 'Kitob matni'));
+      reading.append(createTextElement('pre', 'book-detail-text', book.bodyText));
+      body.append(reading);
     }
   } catch (error) {
     activeBookForPrint = null;

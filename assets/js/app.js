@@ -104,9 +104,8 @@ async function restoreSession() {
     const result = await apiRequest('/api/auth/me');
     showAccount(result.user);
   } catch (error) {
-    clearAccessToken();
-
     if (error instanceof ApiError && error.status === 401) {
+      clearAccessToken();
       showLogin('Sessiya tugagan. Qaytadan kiring.', 'error');
       return;
     }
@@ -192,6 +191,12 @@ setupForm.addEventListener('submit', async (event) => {
   const setupToken = $('setupToken').value;
   const username = $('setupUsername').value.trim();
   const password = $('setupPassword').value;
+  const passwordConfirm = $('setupPasswordConfirm').value;
+
+  if (password !== passwordConfirm) {
+    setStatus($('setupStatus'), 'Kiritilgan parollar bir-biriga mos kelmayapti.', 'error');
+    return;
+  }
 
   setBusy(setupButton, true, 'Hisob yaratilmoqda...', 'Hisobni yaratish');
   setStatus($('setupStatus'), '');

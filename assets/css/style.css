@@ -910,3 +910,237 @@ a:hover {
     padding: 17px;
   }
 }
+
+
+/* Book editing, QR display, and A5 print sheet */
+.book-form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.book-files-notice {
+  padding: 11px 13px;
+  border: 1px solid #d7e5f3;
+  border-radius: 10px;
+  background: #f1f7fd;
+  color: #355b80;
+  font-size: 13px;
+}
+
+.admin-book-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.edit-book-button,
+.archive-book-button {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.edit-book-button {
+  color: var(--navy);
+}
+
+.book-qr-panel {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #f8fbff;
+}
+
+.book-qr-panel h3 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 16px;
+}
+
+.book-qr-panel p {
+  margin: 6px 0 9px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.book-public-url {
+  display: block;
+  max-width: 100%;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.book-qr-image {
+  width: 142px;
+  height: 142px;
+  flex: 0 0 auto;
+  padding: 8px;
+  border: 1px solid #e0e7ef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.print-sheet {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .book-qr-panel {
+    align-items: flex-start;
+    flex-direction: column-reverse;
+  }
+
+  .book-qr-image {
+    width: 128px;
+    height: 128px;
+    align-self: center;
+  }
+
+  .admin-book-actions {
+    width: 100%;
+  }
+
+  .admin-book-actions button {
+    flex: 1;
+  }
+}
+
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 148mm;
+    min-width: 148mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body > *:not(#printSheet) {
+    display: none !important;
+  }
+
+  body .print-sheet,
+  body .print-sheet.is-hidden {
+    display: flex !important;
+    width: 148mm;
+    min-height: 210mm;
+    flex-direction: column;
+    padding: 12mm;
+    background: #fff;
+    color: #18283a;
+    font-family: Arial, sans-serif;
+  }
+
+  .print-sheet-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 5mm;
+    border-bottom: 1px solid #d7e0e9;
+    color: #173b65;
+    font-size: 10pt;
+  }
+
+  .print-sheet-header strong {
+    font-size: 13pt;
+  }
+
+  #printBookTitle {
+    margin: 8mm 0 7mm;
+    color: #173b65;
+    font-size: 19pt;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .print-book-layout {
+    display: grid;
+    grid-template-columns: 52mm 1fr;
+    gap: 7mm;
+    flex: 1;
+  }
+
+  .print-cover-wrap {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .print-cover-wrap img {
+    max-width: 52mm;
+    max-height: 88mm;
+    object-fit: contain;
+  }
+
+  .print-book-details {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3mm;
+  }
+
+  .print-book-author,
+  .print-book-category,
+  .print-book-summary {
+    margin: 0;
+    font-size: 9pt;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .print-book-author {
+    font-weight: 700;
+  }
+
+  .print-book-category {
+    color: #50657b;
+  }
+
+  .print-qr-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2mm;
+    margin-top: 8mm;
+    padding: 4mm;
+    border: 1px solid #dce6f1;
+    border-radius: 3mm;
+  }
+
+  #printQrImage {
+    width: 43mm;
+    height: 43mm;
+    object-fit: contain;
+  }
+
+  .print-qr-wrap p {
+    margin: 0;
+    font-size: 8pt;
+    text-align: center;
+  }
+
+  .print-sheet-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+    margin-top: 7mm;
+    padding-top: 4mm;
+    border-top: 1px solid #d7e0e9;
+    color: #586d82;
+    font-size: 7pt;
+    overflow-wrap: anywhere;
+  }
+}

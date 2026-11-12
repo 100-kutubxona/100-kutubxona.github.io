@@ -2,12 +2,16 @@ import {
   ApiError,
   apiRequest,
   apiUploadFile,
+  getApiUrl,
   clearAccessToken,
   getAccessToken,
   saveAccessToken
 } from './api.js';
 
 const $ = (id) => document.getElementById(id);
+
+let editingBookId = null;
+let activeBookForPrint = null;
 
 const catalogSection = $('catalogSection');
 const librarianSection = $('librarianSection');
@@ -517,6 +521,7 @@ async function openBook(id, updateHash = true) {
   try {
     const result = await apiRequest('/api/books/' + encodeURIComponent(id));
     const book = result.book;
+    activeBookForPrint = book;
 
     $('bookDialogTitle').textContent = book.title;
     $('bookDialogMeta').textContent = [
@@ -524,6 +529,14 @@ async function openBook(id, updateHash = true) {
       book.language,
       book.category
     ].filter(Boolean).join(' · ');
+
+    const qrImage = $('bookQrImage');
+    qrImage.src = getApiUrl(book.qrPath || ('/api/books/' + encodeURIComponent(id) + '/qr.svg'));
+    qrImage.alt = 'QR-kod: ' + book.title;
+
+    const publicUrl = $('bookPublicUrl');
+    publicUrl.href = book.publicUrl;
+    publicUrl.textContent = book.publicUrl;
 
     body.replaceChildren();
 
@@ -561,12 +574,64 @@ async function openBook(id, updateHash = true) {
       ));
     }
   } catch (error) {
+    activeBookForPrint = null;
     body.replaceChildren(createTextElement(
       'p',
       'form-status is-error',
       apiErrorMessage(error, 'book')
     ));
   }
+}
+
+async function waitForImage(image) {
+  if (!image || !image.src || image.complete) return;
+
+  await new Promise((resolve) => {
+    image.addEventListener('load', resolve, { once: true });
+    image.addEventListener('error', resolve, { once: true });
+  });
+}
+
+async function printBookCard() {
+  const book = activeBookForPrint;
+
+  if (!book) return;
+
+  $('printBookTitle').textContent = book.title || '';
+  $('printBookAuthor').textContent = book.author
+    ? 'Muallif: ' + book.author
+    : 'Muallif ko‘rsatilmagan';
+  $('printBookCategory').textContent = [book.category, book.language]
+    .filter(Boolean).join(' · ');
+  $('printBookSummary').textContent = book.summary || '';
+
+  const coverWrap = $('printCoverWrap');
+  const coverImage = $('printCoverImage');
+
+  if (book.coverUrl) {
+    coverWrap.classList.remove('is-hidden');
+    coverImage.src = book.coverUrl;
+    coverImage.alt = 'Muqova: ' + book.title;
+  } else {
+    coverWrap.classList.add('is-hidden');
+    coverImage.removeAttribute('src');
+  }
+
+  $('printQrImage').src = getApiUrl(
+    book.qrPath || ('/api/books/' + encodeURIComponent(book.id) + '/qr.svg')
+  );
+  $('printBookUrl').textContent = book.publicUrl || '';
+
+  const printSheet = $('printSheet');
+  printSheet.classList.remove('is-hidden');
+
+  await Promise.all([
+    waitForImage($('printQrImage')),
+    book.coverUrl ? waitForImage(coverImage) : Promise.resolve()
+  ]);
+
+  window.print();
+  printSheet.classList.add('is-hidden');
 }
 
 function closeBookDialog() {
@@ -600,8 +665,16 @@ function renderAdminBooks(books) {
     info.append(createTextElement(
       'span',
       'muted',
-      (book.author || 'Muallif ko‘rsatilmagan') + (book.pdfName ? ' · PDF biriktirilgan' : ' · PDF yo‘q')
+      (book.author || 'Muallif ko‘rsatilmagan') +
+      (book.pdfName ? ' · PDF biriktirilgan' : ' · PDF yo‘q')
     ));
+
+    const actions = document.createElement('div');
+    actions.className = 'admin-book-actions';
+
+    const editButton = createTextElement('button', 'secondary-button edit-book-button', 'Tahrirlash');
+    editButton.type = 'button';
+    editButton.addEventListener('click', () => void startBookEdit(book.id));
 
     const archiveButton = createTextElement('button', 'secondary-button archive-book-button', 'Katalogdan yashirish');
     archiveButton.type = 'button';
@@ -624,7 +697,8 @@ function renderAdminBooks(books) {
       }
     });
 
-    row.append(info, archiveButton);
+    actions.append(editButton, archiveButton);
+    row.append(info, actions);
     list.append(row);
   }
 }
@@ -647,11 +721,69 @@ async function loadAdminBooks() {
   }
 }
 
+function showBookFormMode(isEditing, book = null) {
+  editingBookId = isEditing && book ? book.id : null;
+
+  $('saveBookButton').textContent = isEditing
+    ? 'O‘zgarishlarni saqlash'
+    : 'Kitobni saqlash';
+
+  $('cancelBookEdit').classList.toggle('is-hidden', !isEditing);
+
+  if (isEditing && book) {
+    const files = [];
+    if (book.pdfName) files.push('PDF: ' + book.pdfName);
+    if (book.coverName) files.push('Muqova: ' + book.coverName);
+
+    $('bookFilesNotice').textContent = files.length
+      ? 'Hozirgi fayllar saqlanadi. Yangi fayl tanlasangiz, u mavjud fayl o‘rnini egallaydi. ' + files.join(' · ')
+      : 'Hozircha PDF yoki muqova biriktirilmagan.';
+
+    $('bookFilesNotice').classList.remove('is-hidden');
+  } else {
+    $('bookFilesNotice').textContent = '';
+    $('bookFilesNotice').classList.add('is-hidden');
+  }
+}
+
+async function startBookEdit(id) {
+  setStatus($('bookFormStatus'), 'Kitob ma’lumotlari ochilmoqda...');
+
+  try {
+    const result = await apiRequest('/api/books/' + encodeURIComponent(id));
+    const book = result.book;
+
+    $('bookTitle').value = book.title || '';
+    $('bookAuthor').value = book.author || '';
+    $('bookLanguage').value = book.language || 'O‘zbekcha';
+    $('bookCategory').value = book.category || 'Badiiy adabiyot';
+    $('bookSummary').value = book.summary || '';
+    $('bookBodyText').value = book.bodyText || '';
+    $('bookPdf').value = '';
+    $('bookCover').value = '';
+
+    showBookFormMode(true, book);
+    setStatus($('bookFormStatus'), 'Kitob ma’lumotlari tahrirlash uchun yuklandi.', 'success');
+    $('bookForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('bookTitle').focus({ preventScroll: true });
+  } catch (error) {
+    setStatus($('bookFormStatus'), apiErrorMessage(error, 'book'), 'error');
+  }
+}
+
+function cancelBookEdit() {
+  $('bookForm').reset();
+  showBookFormMode(false);
+  setStatus($('bookFormStatus'), 'Tahrirlash bekor qilindi.');
+}
+
 async function saveBookFromForm(event) {
   event.preventDefault();
 
   const pdf = $('bookPdf').files[0] || null;
   const cover = $('bookCover').files[0] || null;
+  const isEditing = Boolean(editingBookId);
+  const targetId = editingBookId;
 
   if (pdf && (pdf.type !== 'application/pdf' || pdf.size > 20 * 1024 * 1024)) {
     setStatus($('bookFormStatus'), 'PDF faylni tekshiring: faqat PDF, 20 MB gacha.', 'error');
@@ -667,43 +799,68 @@ async function saveBookFromForm(event) {
   }
 
   const button = $('saveBookButton');
-  setBusy(button, true, 'Kitob saqlanmoqda...', 'Kitobni saqlash');
+  setBusy(
+    button,
+    true,
+    isEditing ? 'O‘zgarishlar saqlanmoqda...' : 'Kitob saqlanmoqda...',
+    isEditing ? 'O‘zgarishlarni saqlash' : 'Kitobni saqlash'
+  );
   setStatus($('bookFormStatus'), '');
 
   let createdBookId = null;
+  let savedBookId = targetId;
 
   try {
-    const result = await apiRequest('/api/books', {
-      method: 'POST',
-      body: {
-        title: $('bookTitle').value.trim(),
-        author: $('bookAuthor').value.trim(),
-        language: $('bookLanguage').value,
-        category: $('bookCategory').value,
-        summary: $('bookSummary').value.trim(),
-        bodyText: $('bookBodyText').value.trim()
-      }
-    });
+    const payload = {
+      title: $('bookTitle').value.trim(),
+      author: $('bookAuthor').value.trim(),
+      language: $('bookLanguage').value,
+      category: $('bookCategory').value,
+      summary: $('bookSummary').value.trim(),
+      bodyText: $('bookBodyText').value.trim()
+    };
 
-    createdBookId = result.book.id;
+    const result = await apiRequest(
+      isEditing
+        ? '/api/books/' + encodeURIComponent(targetId)
+        : '/api/books',
+      {
+        method: isEditing ? 'PUT' : 'POST',
+        body: payload
+      }
+    );
+
+    savedBookId = result.book.id;
+    if (!isEditing) createdBookId = savedBookId;
 
     if (cover) {
       setStatus($('bookFormStatus'), 'Muqova Backblaze B2 ga yuklanmoqda...');
-      const path = '/api/books/' + encodeURIComponent(createdBookId) +
+      const path = '/api/books/' + encodeURIComponent(savedBookId) +
         '/files/cover?filename=' + encodeURIComponent(cover.name);
       await apiUploadFile(path, cover);
     }
 
     if (pdf) {
       setStatus($('bookFormStatus'), 'PDF fayl Backblaze B2 ga yuklanmoqda...');
-      const path = '/api/books/' + encodeURIComponent(createdBookId) +
+      const path = '/api/books/' + encodeURIComponent(savedBookId) +
         '/files/pdf?filename=' + encodeURIComponent(pdf.name);
       await apiUploadFile(path, pdf);
     }
 
     $('bookForm').reset();
-    setStatus($('bookFormStatus'), 'Kitob MongoDB bazasiga saqlandi.', 'success');
+    showBookFormMode(false);
+    setStatus(
+      $('bookFormStatus'),
+      isEditing
+        ? 'Kitob ma’lumotlari yangilandi. Kitobning QR-kodi o‘zgarmaydi.'
+        : 'Kitob saqlandi. Uning doimiy QR-kodi yaratildi.',
+      'success'
+    );
+
     await Promise.all([loadCatalog(), loadAdminBooks()]);
+    if (savedBookId) {
+      await openBook(savedBookId);
+    }
   } catch (error) {
     if (createdBookId) {
       await apiRequest('/api/books/' + encodeURIComponent(createdBookId), {
@@ -711,9 +868,18 @@ async function saveBookFromForm(event) {
       }).catch(() => undefined);
     }
 
-    setStatus($('bookFormStatus'), apiErrorMessage(error, 'book'), 'error');
+    const message = isEditing
+      ? 'Ma’lumotlar saqlangan bo‘lishi mumkin, ammo fayl yuklashda xatolik yuz berdi. Eski fayl saqlanadi. ' + apiErrorMessage(error, 'book')
+      : apiErrorMessage(error, 'book');
+
+    setStatus($('bookFormStatus'), message, 'error');
   } finally {
-    setBusy(button, false, 'Kitob saqlanmoqda...', 'Kitobni saqlash');
+    setBusy(
+      button,
+      false,
+      'Saqlanmoqda...',
+      editingBookId ? 'O‘zgarishlarni saqlash' : 'Kitobni saqlash'
+    );
   }
 }
 
@@ -726,6 +892,8 @@ $('bookCategoryFilter').addEventListener('change', () => void loadCatalog());
 $('refreshBooksButton').addEventListener('click', () => void loadCatalog());
 $('refreshAdminBooksButton').addEventListener('click', () => void loadAdminBooks());
 $('bookForm').addEventListener('submit', saveBookFromForm);
+$('cancelBookEdit').addEventListener('click', cancelBookEdit);
+$('printBookButton').addEventListener('click', () => void printBookCard());
 $('closeBookDialog').addEventListener('click', closeBookDialog);
 
 $('bookDialog').addEventListener('click', (event) => {

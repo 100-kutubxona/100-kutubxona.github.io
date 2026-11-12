@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#173b65">
   <meta name="description" content="100-maktab elektron kutubxonasi">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://s3.eu-central-003.backblazeb2.com; connect-src 'self' https://one00-maktab-kutubxona-api.onrender.com; base-uri 'none'; object-src 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://s3.eu-central-003.backblazeb2.com https://one00-maktab-kutubxona-api.onrender.com; connect-src 'self' https://one00-maktab-kutubxona-api.onrender.com; base-uri 'none'; object-src 'none'; form-action 'self'">
   <title>100-maktab elektron kutubxonasi</title>
   <link rel="stylesheet" href="./assets/css/style.css">
   <script type="module" src="./assets/js/app.js"></script>
@@ -225,8 +225,10 @@
                 <label for="bookBodyText">Matn ko‘rinishidagi kitob (ixtiyoriy)</label>
                 <textarea id="bookBodyText" rows="6" maxlength="30000" placeholder="Kitob matnini shu yerga joylang..."></textarea>
               </div>
-              <div class="full-field">
+              <div id="bookFilesNotice" class="book-files-notice full-field is-hidden"></div>
+              <div class="full-field book-form-actions">
                 <button class="primary-button" type="submit" id="saveBookButton">Kitobni saqlash</button>
+                <button class="secondary-button is-hidden" type="button" id="cancelBookEdit">Bekor qilish</button>
                 <p id="bookFormStatus" class="form-status" role="status" aria-live="polite"></p>
               </div>
             </div>
@@ -293,8 +295,42 @@
       <div id="bookDialogBody" class="book-dialog-body">
         <p class="muted">Kitob ma’lumotlari yuklanmoqda...</p>
       </div>
+      <section class="book-qr-panel" aria-label="Kitob QR-kodi">
+        <div>
+          <h3>Kitobning doimiy QR-kodi</h3>
+          <p>QR-kodni skanerlagan odam ushbu kitobning sahifasiga o‘tadi.</p>
+          <a id="bookPublicUrl" class="book-public-url" href="#" target="_blank" rel="noopener noreferrer"></a>
+          <button id="printBookButton" class="primary-button" type="button">QR-kod va muqovani chop etish</button>
+        </div>
+        <img id="bookQrImage" class="book-qr-image" alt="Ushbu kitobning QR-kodi">
+      </section>
     </div>
   </div>
+  <section id="printSheet" class="print-sheet is-hidden" aria-label="Kitob QR-kodini chop etish">
+    <header class="print-sheet-header">
+      <strong>100-maktab</strong>
+      <span>Elektron kutubxona</span>
+    </header>
+    <h1 id="printBookTitle"></h1>
+    <div class="print-book-layout">
+      <div id="printCoverWrap" class="print-cover-wrap is-hidden">
+        <img id="printCoverImage" alt="Kitob muqovasi">
+      </div>
+      <div class="print-book-details">
+        <p id="printBookAuthor" class="print-book-author"></p>
+        <p id="printBookCategory" class="print-book-category"></p>
+        <p id="printBookSummary" class="print-book-summary"></p>
+        <div class="print-qr-wrap">
+          <img id="printQrImage" alt="Kitob sahifasiga olib boruvchi QR-kod">
+          <p>Kitob sahifasini ochish uchun QR-kodni skanerlang.</p>
+        </div>
+      </div>
+    </div>
+    <footer class="print-sheet-footer">
+      <span>100-maktab elektron kutubxonasi</span>
+      <span id="printBookUrl"></span>
+    </footer>
+  </section>
   <footer class="site-footer">
     <div class="container">
       <span>100-maktab elektron kutubxonasi</span>

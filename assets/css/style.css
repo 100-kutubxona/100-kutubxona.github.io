@@ -447,3 +447,53 @@ a:hover {
     flex-direction: column;
   }
 }
+
+
+.role-label {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 9px;
+  padding: 5px 10px;
+  border: 1px solid #d7e5f3;
+  border-radius: 999px;
+  background: #eff6fd;
+  color: #285c8e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.invitation-tools {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid #edf1f5;
+}
+
+.compact-heading {
+  margin-bottom: 2px;
+}
+
+.compact-heading h3 {
+  font-size: 17px;
+}
+
+.invite-url-label {
+  display: block;
+  margin: 8px 0 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.invite-url-input {
+  width: 100%;
+  min-height: 43px;
+  margin-bottom: 9px;
+  padding: 10px 11px;
+  border: 1px solid #cbd8e6;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+}

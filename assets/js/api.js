@@ -1,5 +1,9 @@
 const API_BASE = 'https://one00-maktab-kutubxona-api.onrender.com';
-export function getApiUrl(path) {\n  return API_BASE + path;\n}\n\nconst TOKEN_KEY = '100_maktab_librarian_session';
+export function getApiUrl(path) {
+  return API_BASE + path;
+}
+
+const TOKEN_KEY = '100_maktab_librarian_session';
 
 export class ApiError extends Error {
   constructor(status, code) {

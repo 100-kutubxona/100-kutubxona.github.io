@@ -13,12 +13,18 @@ const librarianSection = $('librarianSection');
 const loginPanel = $('loginPanel');
 const setupPanel = $('setupPanel');
 const accountPanel = $('accountPanel');
+const invitePanel = $('invitePanel');
 
 const loginForm = $('loginForm');
 const setupForm = $('setupForm');
+const inviteForm = $('inviteForm');
+
 const loginButton = $('loginButton');
 const setupButton = $('setupButton');
+const inviteSubmitButton = $('inviteSubmitButton');
 const logoutButton = $('logoutButton');
+const createInvitationButton = $('createInvitationButton');
+const copyInvitationButton = $('copyInvitationButton');
 
 function setStatus(element, message, kind = '') {
   element.textContent = message;
@@ -38,16 +44,19 @@ function apiErrorMessage(error, context) {
 
   const messages = {
     invalid_credentials: 'Login yoki parol noto‘g‘ri.',
-    too_many_login_attempts: 'Urinishlar soni oshib ketdi. Biroz kutib, keyin qayta urinib ko‘ring.',
+    too_many_login_attempts: 'Kirish urinishlari ko‘p bo‘ldi. 15 daqiqadan keyin qayta urinib ko‘ring.',
     invalid_setup_token: 'Bir martalik sozlash kodi noto‘g‘ri.',
-    setup_already_completed: 'Kutubxonachi hisobi allaqachon yaratilgan. Kirish sahifasidan foydalaning.',
+    setup_already_completed: 'Birinchi administrator hisobi allaqachon yaratilgan. Kirish sahifasidan foydalaning.',
     username_already_used: 'Bu login band. Boshqa login tanlang.',
     invalid_username: 'Login 3–32 belgidan iborat bo‘lishi va lotin harflari yoki raqamlardan foydalanishi kerak.',
     password_policy_not_met: 'Parol kamida 12 ta belgidan iborat bo‘lishi kerak.',
-    setup_not_configured: 'Serverda bir martalik sozlash kodi hali kiritilmagan.',
+    setup_not_configured: 'Serverda bir martalik sozlash kodi kiritilmagan.',
     too_many_setup_attempts: 'Sozlash urinishlari ko‘p bo‘ldi. Biroz kutib qayta urinib ko‘ring.',
     authentication_required: 'Sessiya tugagan. Qaytadan tizimga kiring.',
-    database_unavailable: 'Ma’lumotlar bazasi hozircha mavjud emas.'
+    database_unavailable: 'Ma’lumotlar bazasi hozircha mavjud emas.',
+    admin_required: 'Taklif havolasini faqat administrator yarata oladi.',
+    invalid_invitation: 'Taklif havolasi noto‘g‘ri, eskirgan yoki allaqachon ishlatilgan.',
+    too_many_invitation_attempts: 'Taklifni tekshirish urinishlari ko‘p bo‘ldi. Keyinroq qayta urinib ko‘ring.'
   };
 
   if (messages[error.code]) {
@@ -78,6 +87,7 @@ function showAuthPanel(panel) {
   loginPanel.classList.toggle('is-hidden', panel !== 'login');
   setupPanel.classList.toggle('is-hidden', panel !== 'setup');
   accountPanel.classList.toggle('is-hidden', panel !== 'account');
+  invitePanel.classList.toggle('is-hidden', panel !== 'invite');
 }
 
 function showLogin(message = '', kind = '') {
@@ -87,8 +97,17 @@ function showLogin(message = '', kind = '') {
 
 function showAccount(user) {
   $('accountName').textContent = user.username;
+  $('accountRole').textContent = user.role === 'admin'
+    ? 'Administrator'
+    : 'Kutubxonachi';
+
+  $('invitationTools').classList.toggle('is-hidden', user.role !== 'admin');
+  $('invitationResult').classList.add('is-hidden');
+  $('invitationUrl').value = '';
+
   showAuthPanel('account');
   setStatus($('accountStatus'), 'Hisobingiz faol.', 'success');
+  setStatus($('invitationStatus'), '');
 }
 
 async function restoreSession() {
@@ -114,11 +133,25 @@ async function restoreSession() {
   }
 }
 
+function showInviteAcceptance(token) {
+  $('inviteToken').value = token;
+  showView('librarian');
+  showAuthPanel('invite');
+  setStatus($('inviteStatus'), '');
+}
+
 function updateRoute() {
-  const isSetup = window.location.hash === '#setup';
-  const isLibrarian = window.location.hash === '#admin' || isSetup;
+  const hash = window.location.hash;
+  const isSetup = hash === '#setup';
+  const invitationMatch = hash.match(/^#invite=([A-Za-z0-9_-]{40,64})$/);
+  const isLibrarian = hash === '#admin' || isSetup || Boolean(invitationMatch);
 
   showView(isLibrarian ? 'librarian' : 'catalog');
+
+  if (invitationMatch) {
+    showInviteAcceptance(invitationMatch[1]);
+    return;
+  }
 
   if (!isLibrarian) {
     return;
@@ -209,11 +242,122 @@ setupForm.addEventListener('submit', async (event) => {
 
     setupForm.reset();
     window.history.replaceState(null, '', '#admin');
-    showLogin('Hisob yaratildi. Endi yangi login va parolingiz bilan kiring.', 'success');
+    showLogin('Administrator hisobi yaratildi. Endi yangi login va parolingiz bilan kiring.', 'success');
   } catch (error) {
     setStatus($('setupStatus'), apiErrorMessage(error, 'setup'), 'error');
   } finally {
     setBusy(setupButton, false, 'Hisob yaratilmoqda...', 'Hisobni yaratish');
+  }
+});
+
+createInvitationButton.addEventListener('click', async () => {
+  setBusy(
+    createInvitationButton,
+    true,
+    'Havola yaratilmoqda...',
+    'Taklif havolasini yaratish'
+  );
+  setStatus($('invitationStatus'), '');
+
+  try {
+    const result = await apiRequest('/api/auth/invitations', {
+      method: 'POST',
+      body: {}
+    });
+
+    const inviteUrl =
+      window.location.origin +
+      window.location.pathname +
+      '#invite=' +
+      encodeURIComponent(result.invitationToken);
+
+    $('invitationUrl').value = inviteUrl;
+    $('invitationResult').classList.remove('is-hidden');
+    setStatus(
+      $('invitationStatus'),
+      'Havola yaratildi. U 30 daqiqa davomida bir marta ishlaydi.',
+      'success'
+    );
+  } catch (error) {
+    setStatus(
+      $('invitationStatus'),
+      apiErrorMessage(error, 'invitation'),
+      'error'
+    );
+  } finally {
+    setBusy(
+      createInvitationButton,
+      false,
+      'Havola yaratilmoqda...',
+      'Taklif havolasini yaratish'
+    );
+  }
+});
+
+copyInvitationButton.addEventListener('click', async () => {
+  const inviteUrl = $('invitationUrl').value;
+
+  if (!inviteUrl) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(inviteUrl);
+    setStatus($('invitationStatus'), 'Havola nusxalandi.', 'success');
+  } catch {
+    $('invitationUrl').focus();
+    $('invitationUrl').select();
+    setStatus(
+      $('invitationStatus'),
+      'Havola ajratildi. Uni Ctrl+C orqali nusxalang.',
+      'success'
+    );
+  }
+});
+
+inviteForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const invitationToken = $('inviteToken').value;
+  const username = $('inviteUsername').value.trim();
+  const password = $('invitePassword').value;
+  const passwordConfirm = $('invitePasswordConfirm').value;
+
+  if (password !== passwordConfirm) {
+    setStatus($('inviteStatus'), 'Kiritilgan parollar bir-biriga mos kelmayapti.', 'error');
+    return;
+  }
+
+  setBusy(
+    inviteSubmitButton,
+    true,
+    'Hisob yaratilmoqda...',
+    'Hisobni yaratish'
+  );
+  setStatus($('inviteStatus'), '');
+
+  try {
+    await apiRequest('/api/auth/invitations/accept', {
+      method: 'POST',
+      body: { invitationToken, username, password }
+    });
+
+    inviteForm.reset();
+    window.history.replaceState(null, '', '#admin');
+    showLogin('Shaxsiy hisob yaratildi. Endi o‘z loginingiz va parolingiz bilan kiring.', 'success');
+  } catch (error) {
+    setStatus(
+      $('inviteStatus'),
+      apiErrorMessage(error, 'invite'),
+      'error'
+    );
+  } finally {
+    setBusy(
+      inviteSubmitButton,
+      false,
+      'Hisob yaratilmoqda...',
+      'Hisobni yaratish'
+    );
   }
 });
 
@@ -223,7 +367,7 @@ logoutButton.addEventListener('click', async () => {
   try {
     await apiRequest('/api/auth/logout', { method: 'POST' });
   } catch {
-    // The local token is cleared even if the network is unavailable.
+    // Clear the local session even when the network is unavailable.
   } finally {
     clearAccessToken();
     logoutButton.disabled = false;

@@ -1144,3 +1144,10 @@ a:hover {
     overflow-wrap: anywhere;
   }
 }
+
+
+@media print {
+  .print-book-details.without-cover {
+    grid-column: 1 / -1;
+  }
+}

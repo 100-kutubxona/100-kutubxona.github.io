@@ -593,10 +593,18 @@ async function waitForImage(image) {
 }
 
 async function printBookCard() {
+  if (!activeBookForPrint) return;
+
+  try {
+    const fresh = await apiRequest(
+      '/api/books/' + encodeURIComponent(activeBookForPrint.id)
+    );
+    activeBookForPrint = fresh.book;
+  } catch {
+    // Use the latest details already shown in the book dialog.
+  }
+
   const book = activeBookForPrint;
-
-  if (!book) return;
-
   $('printBookTitle').textContent = book.title || '';
   $('printBookAuthor').textContent = book.author
     ? 'Muallif: ' + book.author
@@ -607,13 +615,16 @@ async function printBookCard() {
 
   const coverWrap = $('printCoverWrap');
   const coverImage = $('printCoverImage');
+  const details = $('printBookDetails');
 
   if (book.coverUrl) {
     coverWrap.classList.remove('is-hidden');
+    details.classList.remove('without-cover');
     coverImage.src = book.coverUrl;
     coverImage.alt = 'Muqova: ' + book.title;
   } else {
     coverWrap.classList.add('is-hidden');
+    details.classList.add('without-cover');
     coverImage.removeAttribute('src');
   }
 

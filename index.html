@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>100-maktab elektron kutubxonasi</title>
+<style>
+:root{--navy:#173b65;--blue:#2675bd;--pale:#eef6ff;--ink:#1e293b;--muted:#64748b;--line:#dce6f1}
+*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:var(--ink);font:16px/1.5 Arial,sans-serif}
+header{background:linear-gradient(120deg,#12365d,#287dc1);color:white;padding:28px 18px 34px}
+.wrap{max-width:1100px;margin:auto;padding:0 16px}.brand{display:flex;align-items:center;gap:14px}.logo{width:54px;height:54px;border-radius:16px;background:#ffffff20;display:grid;place-items:center;font-size:28px}
+h1{font-size:clamp(23px,4vw,34px);margin:0}header p{margin:8px 0 0;color:#e5f1ff}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.tab{border:1px solid #ffffff70;background:#ffffff12;color:white;padding:9px 14px;border-radius:999px;cursor:pointer}.tab.active{background:white;color:var(--navy);font-weight:bold}
+main{padding:24px 0 50px}.toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:18px}
+input,textarea,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:white;color:var(--ink)}
+.search{max-width:420px}.btn{border:0;background:var(--blue);color:white;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}.btn.secondary{background:#e7f0fa;color:var(--navy)}.btn.danger{background:#b93838}.btn:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}.card{background:white;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 5px 18px #173b650b}.cover{height:145px;background:linear-gradient(135deg,#dceeff,#f3f8ff);display:grid;place-items:center;font-size:48px;color:#397ab6}.cardbody{padding:15px}.card h3{margin:0 0 5px;font-size:18px}.muted{color:var(--muted);font-size:14px}.tags{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.tag{font-size:12px;background:var(--pale);color:#245b91;padding:4px 8px;border-radius:20px}
+.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px}.panel h2{margin:0 0 14px;color:var(--navy)}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}.field.full{grid-column:1/-1}.hidden{display:none!important}.empty{text-align:center;padding:45px 15px;color:var(--muted);background:white;border-radius:16px;border:1px dashed var(--line)}
+.modal{position:fixed;inset:0;background:#10243dcc;display:none;align-items:center;justify-content:center;padding:16px;z-index:10}.modal.open{display:flex}.modalbox{background:white;border-radius:18px;max-width:680px;width:100%;max-height:90vh;overflow:auto;padding:22px}.modalhead{display:flex;justify-content:space-between;gap:12px;align-items:center}.close{border:0;background:#edf2f7;border-radius:50%;width:36px;height:36px;font-size:20px;cursor:pointer}.reader{margin-top:16px;white-space:pre-wrap;line-height:1.8}.qrwrap{text-align:center;background:#f7faff;padding:14px;border-radius:12px;margin-top:14px}.qrwrap img{width:190px;height:190px;max-width:100%}.notice{font-size:13px;color:#7b5a13;background:#fff7df;border:1px solid #f1dfaa;padding:12px;border-radius:10px;margin-top:16px}
+footer{text-align:center;color:var(--muted);padding:22px;font-size:13px}
+@media(max-width:620px){.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.toolbar{align-items:stretch}.search{max-width:none}.toolbar .btn{width:100%}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+ <div class="brand"><div class="logo">📚</div><div><h1>100-maktab elektron kutubxonasi</h1><p>Kitob o‘qiymiz, tinglaymiz va bilim olamiz!</p></div></div>
+ <nav><button class="tab active" data-view="catalog">Kitoblar katalogi</button><button class="tab" data-view="admin">Kutubxonachi bo‘limi</button></nav>
+</div></header>
+<main class="wrap">
+<section id="catalog">
+ <div class="toolbar"><input id="search" class="search" placeholder="Kitob nomi yoki muallifni qidiring..."><span class="muted" id="count">0 ta kitob</span></div>
+ <div id="books" class="grid"></div>
+ <div id="empty" class="empty">Hozircha kitoblar kiritilmagan. Kutubxonachi bo‘limidan kitob qo‘shishingiz mumkin.</div>
+</section>
+<section id="admin" class="hidden">
+ <div class="panel">
+  <h2>➕ Yangi kitob qo‘shish</h2>
+  <form id="bookForm"><div class="formgrid">
+   <div class="field"><label for="title">Kitob nomi *</label><input id="title" required placeholder="Masalan: Sariq devni minib"></div>
+   <div class="field"><label for="author">Muallif</label><input id="author" placeholder="Muallif ismi"></div>
+   <div class="field"><label for="language">Til</label><select id="language"><option>O‘zbekcha</option><option>Русский</option><option>Qoraqalpoqcha</option><option>Boshqa</option></select></div>
+   <div class="field"><label for="category">Bo‘lim</label><select id="category"><option>Badiiy adabiyot</option><option>Bolalar adabiyoti</option><option>Darslik</option><option>Ilmiy-ommabop</option><option>Boshqa</option></select></div>
+   <div class="field full"><label for="summary">Kitob haqida qisqacha</label><textarea id="summary" rows="2" placeholder="Kitob mazmuni haqida..."></textarea></div>
+   <div class="field"><label for="pdf">PDF kitob fayli</label><input id="pdf" type="file" accept="application/pdf"></div>
+   <div class="field"><label for="audio">Audio kitob fayli</label><input id="audio" type="file" accept="audio/*"></div>
+   <div class="field full"><label for="bodytext">Matn ko‘rinishidagi kitob (ixtiyoriy)</label><textarea id="bodytext" rows="5" placeholder="Kitob matnini shu yerga joylang..."></textarea></div>
+   <div class="field full"><button class="btn" type="submit">Kitobni saqlash va QR-kod yaratish</button></div>
+  </div></form>
+ </div>
+ <div class="panel"><h2>📖 Kiritilgan kitoblar</h2><div id="adminList"></div></div>
+ <div class="notice"><b>Muhim:</b> Bu hozircha sinov prototipi. Kiritilgan ma’lumotlar ayni brauzer qurilmasida saqlanadi. QR-kod boshqa telefonlarda ham ishlashi uchun saytni internetga joylashtirish va umumiy onlayn ma’lumotlar bazasi/fayl saqlash xizmatiga ulash kerak. Haqiqiy kitoblarni yuklashdan oldin mualliflik huquqi va tarqatish ruxsatini tekshiring.</div>
+</section>
+</main>
+<div class="modal" id="modal"><div class="modalbox"><div class="modalhead"><div><h2 id="modalTitle" style="margin:0"></h2><div class="muted" id="modalMeta"></div></div><button class="close" id="close">×</button></div><p id="modalSummary"></p><div id="readerArea"></div><div class="qrwrap"><b>Ushbu kitobning QR-kodi</b><br><img id="qr" alt="Kitob QR kodi"><p class="muted" id="qrUrl"></p><button class="btn secondary" id="printQr">QR-kodni chop etish</button></div></div></div>
+<footer>© 100-maktab elektron kutubxonasi</footer>
+<script>
+const DB='school100_books_v1';
+let books=JSON.parse(localStorage.getItem(DB)||'[]');
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem(DB,JSON.stringify(books));render();}
+function safe(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function render(){
+ const q=$('search').value.toLowerCase();
+ const filtered=books.filter(b=>(b.title+' '+b.author+' '+b.category).toLowerCase().includes(q));
+ $('count').textContent=books.length+' ta kitob';
+ $('empty').classList.toggle('hidden',filtered.length>0);
+ $('books').innerHTML=filtered.map(b=>`<article class="card"><div class="cover">📘</div><div class="cardbody"><h3>${safe(b.title)}</h3><div class="muted">${safe(b.author||'Muallif ko‘rsatilmagan')}</div><div class="tags"><span class="tag">${safe(b.category)}</span><span class="tag">${safe(b.language)}</span></div><button class="btn" onclick="openBook('${b.id}')">Kitobni ochish</button></div></article>`).join('');
+ $('adminList').innerHTML=books.length?books.map(b=>`<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #e5edf5"><div><b>${safe(b.title)}</b><div class="muted">${safe(b.author||'')} · ${safe(b.id)}</div></div><button class="btn danger" onclick="removeBook('${b.id}')">O‘chirish</button></div>`).join(''):'<p class="muted">Hozircha kitob yo‘q.</p>';
+}
+function openBook(id){
+ const b=books.find(x=>x.id===id);if(!b)return;
+ $('modalTitle').textContent=b.title;$('modalMeta').textContent=(b.author||'')+' · '+b.language+' · '+b.category;
+ $('modalSummary').textContent=b.summary||'';
+ let area='';
+ if(b.pdfData)area+=`<p><a class="btn secondary" href="${b.pdfData}" target="_blank" rel="noopener">PDF kitobni ochish</a></p>`;
+ if(b.audioData)area+=`<div style="margin:14px 0"><b>🎧 Audio kitob</b><audio controls style="width:100%;margin-top:8px" src="${b.audioData}"></audio></div>`;
+ if(b.bodytext)area+=`<div class="reader">${safe(b.bodytext)}</div>`;
+ if(!area)area='<p class="muted">Bu kitob uchun hozircha PDF, audio yoki matn kiritilmagan.</p>';
+ $('readerArea').innerHTML=area;
+ const url=location.href.split('#')[0]+'#book='+encodeURIComponent(id);
+ $('qr').src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
+ $('qrUrl').textContent=url;$('modal').classList.add('open');
+}
+function removeBook(id){if(confirm('Kitobni o‘chirishni xohlaysizmi?')){books=books.filter(b=>b.id!==id);save();}}
+$('bookForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const pdf=$('pdf').files[0],audio=$('audio').files[0];
+ if(pdf&&pdf.size>5*1024*1024||audio&&audio.size>8*1024*1024){alert('Sinov versiyasida PDF 5 MB, audio 8 MB dan oshmasin.');return;}
+ const read=file=>new Promise((resolve,reject)=>{if(!file)return resolve('');const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});
+ const btn=e.submitter;btn.disabled=true;btn.textContent='Saqlanmoqda...';
+ try{
+  const id='kitob-'+Date.now().toString(36);
+  books.unshift({id,title:$('title').value.trim(),author:$('author').value.trim(),language:$('language').value,category:$('category').value,summary:$('summary').value.trim(),pdfData:await read(pdf),audioData:await read(audio),bodytext:$('bodytext').value.trim()});
+  save();e.target.reset();openBook(id);
+ }catch(err){alert('Saqlashda xatolik yuz berdi. Fayl hajmini kamaytirib qayta urinib ko‘ring.');}
+ finally{btn.disabled=false;btn.textContent='Kitobni saqlash va QR-kod yaratish';}
+});
+$('search').addEventListener('input',render);
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+ $('catalog').classList.toggle('hidden',t.dataset.view!=='catalog');$('admin').classList.toggle('hidden',t.dataset.view!=='admin');
+}));
+$('close').onclick=()=>$('modal').classList.remove('open');
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))$('modal').classList.remove('open')});
+$('printQr').onclick=()=>{const w=window.open('','_blank');w.document.write(`<html><body style="font-family:Arial;text-align:center;padding:30px"><h2>${safe($('modalTitle').textContent)}</h2><img src="${$('qr').src}" style="width:260px"><p>100-maktab elektron kutubxonasi</p></body></html>`);w.document.close();w.print();};
+function routeHash(){const m=location.hash.match(/book=([^&]+)/);if(m){const id=decodeURIComponent(m[1]);if(books.some(b=>b.id===id))openBook(id);}}
+window.addEventListener('hashchange',routeHash);render();routeHash();
+</script>
+</body></html>

@@ -69,3 +69,44 @@ export async function apiRequest(path, options = {}) {
 
   return payload;
 }
+
+
+export async function apiUploadFile(path, file) {
+  const headers = new Headers();
+  const token = getAccessToken();
+
+  if (token) {
+    headers.set('Authorization', 'Bearer ' + token);
+  }
+
+  headers.set('Content-Type', file.type || 'application/octet-stream');
+
+  const response = await fetch(API_BASE + path, {
+    method: 'PUT',
+    headers,
+    body: file,
+    mode: 'cors',
+    credentials: 'omit',
+    cache: 'no-store',
+    redirect: 'error'
+  });
+
+  let payload = null;
+
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      payload && typeof payload.error === 'string'
+        ? payload.error
+        : 'request_failed'
+    );
+  }
+
+  return payload;
+}

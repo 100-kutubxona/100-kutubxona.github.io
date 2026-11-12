@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#173b65">
   <meta name="description" content="100-maktab elektron kutubxonasi">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://one00-maktab-kutubxona-api.onrender.com; base-uri 'none'; object-src 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://s3.eu-central-003.backblazeb2.com; connect-src 'self' https://one00-maktab-kutubxona-api.onrender.com; base-uri 'none'; object-src 'none'; form-action 'self'">
   <title>100-maktab elektron kutubxonasi</title>
   <link rel="stylesheet" href="./assets/css/style.css">
   <script type="module" src="./assets/js/app.js"></script>
@@ -44,10 +44,32 @@
         </div>
       </div>
 
-      <div class="catalog-placeholder">
-        <div class="placeholder-icon" aria-hidden="true">A</div>
-        <h3>Yangi katalog tayyorlanmoqda</h3>
-        <p>Kitoblar ro‘yxati MongoDB bazasiga ulangandan so‘ng shu yerda ko‘rinadi. Hozircha mavjud kitoblar va fayllar o‘zgartirilmagan.</p>
+      <div class="catalog-toolbar">
+        <div class="catalog-search-field">
+          <label for="bookSearch">Kitob yoki muallifni qidirish</label>
+          <input id="bookSearch" type="search" placeholder="Kitob nomi yoki muallif..." autocomplete="off">
+        </div>
+        <div class="catalog-filter-field">
+          <label for="bookCategoryFilter">Bo‘lim</label>
+          <select id="bookCategoryFilter">
+            <option value="">Barcha bo‘limlar</option>
+            <option value="Badiiy adabiyot">Badiiy adabiyot</option>
+            <option value="Bolalar adabiyoti">Bolalar adabiyoti</option>
+            <option value="Darslik">Darslik</option>
+            <option value="Ilmiy-ommabop">Ilmiy-ommabop</option>
+            <option value="Boshqa">Boshqa</option>
+          </select>
+        </div>
+        <button class="secondary-button catalog-refresh" type="button" id="refreshBooksButton">Yangilash</button>
+      </div>
+      <div class="catalog-summary">
+        <span id="bookCount">0 ta kitob</span>
+        <p id="catalogStatus" class="form-status" role="status" aria-live="polite"></p>
+      </div>
+      <div id="booksGrid" class="books-grid"></div>
+      <div id="emptyBooks" class="empty-state is-hidden">
+        <h3>Hozircha kitob topilmadi</h3>
+        <p>Qidiruvni o‘zgartiring yoki keyinroq qayta tekshiring.</p>
       </div>
     </section>
 
@@ -151,6 +173,74 @@
           </div>
           <p id="invitationStatus" class="form-status" role="status" aria-live="polite"></p>
         </div>
+        <section id="bookManagement" class="book-management" aria-labelledby="bookManagementTitle">
+          <div class="panel-heading compact-heading">
+            <h3 id="bookManagementTitle">Kitoblarni boshqarish</h3>
+            <p>Yangi kitob ma’lumotlarini kiriting. PDF va muqova fayllari yopiq Backblaze saqlash joyiga yuklanadi.</p>
+          </div>
+          <form id="bookForm" class="book-form">
+            <div class="book-form-grid">
+              <div class="form-field">
+                <label for="bookTitle">Kitob nomi *</label>
+                <input id="bookTitle" type="text" required maxlength="180" placeholder="Masalan: Sariq devni minib">
+              </div>
+              <div class="form-field">
+                <label for="bookAuthor">Muallif</label>
+                <input id="bookAuthor" type="text" maxlength="120" placeholder="Muallif ismi">
+              </div>
+              <div class="form-field">
+                <label for="bookLanguage">Til</label>
+                <select id="bookLanguage">
+                  <option>O‘zbekcha</option>
+                  <option>Русский</option>
+                  <option>Qoraqalpoqcha</option>
+                  <option>Boshqa</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="bookCategory">Bo‘lim</label>
+                <select id="bookCategory">
+                  <option>Badiiy adabiyot</option>
+                  <option>Bolalar adabiyoti</option>
+                  <option>Darslik</option>
+                  <option>Ilmiy-ommabop</option>
+                  <option>Boshqa</option>
+                </select>
+              </div>
+              <div class="form-field full-field">
+                <label for="bookSummary">Kitob haqida qisqacha</label>
+                <textarea id="bookSummary" rows="3" maxlength="1200" placeholder="Kitob mazmuni haqida..."></textarea>
+              </div>
+              <div class="form-field">
+                <label for="bookPdf">PDF kitob fayli</label>
+                <input id="bookPdf" type="file" accept="application/pdf">
+                <small>PDF hajmi 20 MB gacha.</small>
+              </div>
+              <div class="form-field">
+                <label for="bookCover">Kitob muqovasi</label>
+                <input id="bookCover" type="file" accept="image/jpeg,image/png,image/webp">
+                <small>JPG, PNG yoki WebP, 4 MB gacha.</small>
+              </div>
+              <div class="form-field full-field">
+                <label for="bookBodyText">Matn ko‘rinishidagi kitob (ixtiyoriy)</label>
+                <textarea id="bookBodyText" rows="6" maxlength="30000" placeholder="Kitob matnini shu yerga joylang..."></textarea>
+              </div>
+              <div class="full-field">
+                <button class="primary-button" type="submit" id="saveBookButton">Kitobni saqlash</button>
+                <p id="bookFormStatus" class="form-status" role="status" aria-live="polite"></p>
+              </div>
+            </div>
+          </form>
+          <div class="admin-books-section">
+            <div class="admin-books-heading">
+              <h4>Katalogdagi kitoblar</h4>
+              <button class="secondary-button" type="button" id="refreshAdminBooksButton">Ro‘yxatni yangilash</button>
+            </div>
+            <div id="adminBooksList" class="admin-books-list">
+              <p class="muted">Ro‘yxat yuklanmoqda...</p>
+            </div>
+          </div>
+        </section>
         <div class="account-actions">
           <span class="session-note">Sessiya 8 soatgacha amal qiladi.</span>
           <button class="secondary-button" type="button" id="logoutButton">Tizimdan chiqish</button>
@@ -190,6 +280,21 @@
     </section>
   </main>
 
+  <div id="bookDialog" class="book-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="bookDialogTitle">
+    <div class="book-dialog-content">
+      <div class="book-dialog-heading">
+        <div>
+          <p class="eyebrow">ELEKTRON KATALOG</p>
+          <h2 id="bookDialogTitle">Kitob haqida</h2>
+          <p id="bookDialogMeta" class="section-description"></p>
+        </div>
+        <button id="closeBookDialog" class="dialog-close" type="button" aria-label="Yopish">×</button>
+      </div>
+      <div id="bookDialogBody" class="book-dialog-body">
+        <p class="muted">Kitob ma’lumotlari yuklanmoqda...</p>
+      </div>
+    </div>
+  </div>
   <footer class="site-footer">
     <div class="container">
       <span>100-maktab elektron kutubxonasi</span>

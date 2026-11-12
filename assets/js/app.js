@@ -1,6 +1,7 @@
 import {
   ApiError,
   apiRequest,
+  apiUploadFile,
   clearAccessToken,
   getAccessToken,
   saveAccessToken
@@ -56,7 +57,19 @@ function apiErrorMessage(error, context) {
     database_unavailable: 'Ma’lumotlar bazasi hozircha mavjud emas.',
     admin_required: 'Taklif havolasini faqat administrator yarata oladi.',
     invalid_invitation: 'Taklif havolasi noto‘g‘ri, eskirgan yoki allaqachon ishlatilgan.',
-    too_many_invitation_attempts: 'Taklifni tekshirish urinishlari ko‘p bo‘ldi. Keyinroq qayta urinib ko‘ring.'
+    too_many_invitation_attempts: 'Taklifni tekshirish urinishlari ko‘p bo‘ldi. Keyinroq qayta urinib ko‘ring.',
+    invalid_title: 'Kitob nomini to‘g‘ri kiriting.',
+    invalid_author: 'Muallif nomi juda uzun yoki noto‘g‘ri.',
+    invalid_language: 'Kitob tilini tekshiring.',
+    invalid_category: 'Kitob bo‘limini tekshiring.',
+    invalid_summary: 'Qisqacha tavsif 1200 belgidan oshmasligi kerak.',
+    invalid_body_text: 'Kitob matni 30 000 belgidan oshmasligi kerak.',
+    pdf_too_large: 'PDF fayl 20 MB dan oshmasligi kerak.',
+    cover_too_large: 'Muqova 4 MB dan oshmasligi kerak.',
+    unsupported_file_type: 'Fayl formati mos emas. PDF yoki JPG, PNG, WebP tanlang.',
+    storage_upload_failed: 'Fayl Backblaze B2 ga yuklanmadi. Saqlash kalitining yozish huquqini tekshirish kerak.',
+    book_not_found: 'Bu kitob topilmadi yoki katalogdan olib tashlangan.',
+    request_body_too_large: 'Yuborilgan ma’lumot hajmi juda katta.'
   };
 
   if (messages[error.code]) {
@@ -108,6 +121,7 @@ function showAccount(user) {
   showAuthPanel('account');
   setStatus($('accountStatus'), 'Hisobingiz faol.', 'success');
   setStatus($('invitationStatus'), '');
+  void loadAdminBooks();
 }
 
 async function restoreSession() {
@@ -142,6 +156,14 @@ function showInviteAcceptance(token) {
 
 function updateRoute() {
   const hash = window.location.hash;
+  const bookMatch = hash.match(/^#book=([0-9a-f-]{36})$/i);
+
+  if (bookMatch) {
+    showView('catalog');
+    void openBook(bookMatch[1], false);
+    return;
+  }
+
   const isSetup = hash === '#setup';
   const invitationMatch = hash.match(/^#invite=([A-Za-z0-9_-]{40,64})$/);
   const isLibrarian = hash === '#admin' || isSetup || Boolean(invitationMatch);
@@ -377,6 +399,347 @@ logoutButton.addEventListener('click', async () => {
   }
 });
 
+
+
+let catalogRequestNumber = 0;
+let catalogSearchTimer = null;
+
+function createTextElement(tagName, className, value) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  element.textContent = value || '';
+  return element;
+}
+
+function renderCatalog(books) {
+  const grid = $('booksGrid');
+  grid.replaceChildren();
+
+  $('bookCount').textContent = books.length + ' ta kitob';
+  $('emptyBooks').classList.toggle('is-hidden', books.length !== 0);
+
+  for (const book of books) {
+    const card = document.createElement('article');
+    card.className = 'book-card';
+
+    const cover = document.createElement('div');
+    cover.className = 'book-card-cover';
+
+    if (book.coverUrl) {
+      const image = document.createElement('img');
+      image.src = book.coverUrl;
+      image.alt = 'Muqova: ' + book.title;
+      image.loading = 'lazy';
+      image.referrerPolicy = 'no-referrer';
+      cover.append(image);
+    } else {
+      cover.append(createTextElement('span', 'book-cover-fallback', '100'));
+    }
+
+    const content = document.createElement('div');
+    content.className = 'book-card-body';
+    content.append(createTextElement('h3', '', book.title));
+    content.append(createTextElement(
+      'p',
+      'book-card-author',
+      book.author || 'Muallif ko‘rsatilmagan'
+    ));
+
+    const tags = document.createElement('div');
+    tags.className = 'book-tags';
+    tags.append(createTextElement('span', 'book-tag', book.category));
+    tags.append(createTextElement('span', 'book-tag', book.language));
+    content.append(tags);
+
+    if (book.summary) {
+      content.append(createTextElement('p', 'book-card-summary', book.summary));
+    }
+
+    const button = createTextElement('button', 'primary-button book-open-button', 'Kitob haqida');
+    button.type = 'button';
+    button.addEventListener('click', () => void openBook(book.id));
+    content.append(button);
+
+    card.append(cover, content);
+    grid.append(card);
+  }
+}
+
+async function loadCatalog() {
+  const requestNumber = ++catalogRequestNumber;
+  const parameters = new URLSearchParams();
+  const query = $('bookSearch').value.trim();
+  const category = $('bookCategoryFilter').value;
+
+  if (query) parameters.set('q', query);
+  if (category) parameters.set('category', category);
+
+  setStatus($('catalogStatus'), 'Kitoblar yuklanmoqda...');
+
+  try {
+    const suffix = parameters.toString();
+    const result = await apiRequest('/api/books' + (suffix ? '?' + suffix : ''));
+
+    if (requestNumber !== catalogRequestNumber) return;
+
+    renderCatalog(Array.isArray(result.books) ? result.books : []);
+    setStatus(
+      $('catalogStatus'),
+      result.count === 0 ? 'Katalogda hozircha kitob yo‘q.' : 'Katalog yangilandi.',
+      'success'
+    );
+  } catch (error) {
+    if (requestNumber !== catalogRequestNumber) return;
+
+    $('booksGrid').replaceChildren();
+    $('emptyBooks').classList.add('is-hidden');
+    setStatus(
+      $('catalogStatus'),
+      apiErrorMessage(error, 'catalog'),
+      'error'
+    );
+  }
+}
+
+async function openBook(id, updateHash = true) {
+  const nextHash = '#book=' + encodeURIComponent(id);
+
+  if (updateHash && window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+    return;
+  }
+
+  const dialog = $('bookDialog');
+  const body = $('bookDialogBody');
+  dialog.classList.remove('is-hidden');
+  body.replaceChildren(createTextElement('p', 'muted', 'Kitob ma’lumotlari yuklanmoqda...'));
+
+  try {
+    const result = await apiRequest('/api/books/' + encodeURIComponent(id));
+    const book = result.book;
+
+    $('bookDialogTitle').textContent = book.title;
+    $('bookDialogMeta').textContent = [
+      book.author || 'Muallif ko‘rsatilmagan',
+      book.language,
+      book.category
+    ].filter(Boolean).join(' · ');
+
+    body.replaceChildren();
+
+    if (book.coverUrl) {
+      const cover = document.createElement('img');
+      cover.className = 'book-detail-cover';
+      cover.src = book.coverUrl;
+      cover.alt = 'Muqova: ' + book.title;
+      cover.referrerPolicy = 'no-referrer';
+      body.append(cover);
+    }
+
+    if (book.summary) {
+      body.append(createTextElement('p', 'book-detail-summary', book.summary));
+    }
+
+    if (book.pdfUrl) {
+      const pdfLink = createTextElement('a', 'primary-button pdf-open-link', 'PDF kitobni ochish');
+      pdfLink.href = book.pdfUrl;
+      pdfLink.target = '_blank';
+      pdfLink.rel = 'noopener noreferrer';
+      body.append(pdfLink);
+    }
+
+    if (book.bodyText) {
+      body.append(createTextElement('h3', 'book-text-heading', 'Kitob matni'));
+      body.append(createTextElement('pre', 'book-detail-text', book.bodyText));
+    }
+
+    if (!book.pdfUrl && !book.bodyText) {
+      body.append(createTextElement(
+        'p',
+        'muted',
+        'Bu kitob uchun hozircha PDF yoki matnli nusxa biriktirilmagan.'
+      ));
+    }
+  } catch (error) {
+    body.replaceChildren(createTextElement(
+      'p',
+      'form-status is-error',
+      apiErrorMessage(error, 'book')
+    ));
+  }
+}
+
+function closeBookDialog() {
+  $('bookDialog').classList.add('is-hidden');
+
+  if (window.location.hash.startsWith('#book=')) {
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search + '#catalog'
+    );
+  }
+}
+
+function renderAdminBooks(books) {
+  const list = $('adminBooksList');
+  list.replaceChildren();
+
+  if (books.length === 0) {
+    list.append(createTextElement('p', 'muted', 'Hozircha katalogga kitob qo‘shilmagan.'));
+    return;
+  }
+
+  for (const book of books) {
+    const row = document.createElement('div');
+    row.className = 'admin-book-row';
+
+    const info = document.createElement('div');
+    info.className = 'admin-book-info';
+    info.append(createTextElement('strong', '', book.title));
+    info.append(createTextElement(
+      'span',
+      'muted',
+      (book.author || 'Muallif ko‘rsatilmagan') + (book.pdfName ? ' · PDF biriktirilgan' : ' · PDF yo‘q')
+    ));
+
+    const archiveButton = createTextElement('button', 'secondary-button archive-book-button', 'Katalogdan yashirish');
+    archiveButton.type = 'button';
+    archiveButton.addEventListener('click', async () => {
+      if (!window.confirm('Ushbu kitobni ommaviy katalogdan yashirishni xohlaysizmi?')) {
+        return;
+      }
+
+      archiveButton.disabled = true;
+
+      try {
+        await apiRequest('/api/books/' + encodeURIComponent(book.id), {
+          method: 'DELETE'
+        });
+        setStatus($('bookFormStatus'), 'Kitob katalogdan yashirildi.', 'success');
+        await Promise.all([loadAdminBooks(), loadCatalog()]);
+      } catch (error) {
+        setStatus($('bookFormStatus'), apiErrorMessage(error, 'book'), 'error');
+        archiveButton.disabled = false;
+      }
+    });
+
+    row.append(info, archiveButton);
+    list.append(row);
+  }
+}
+
+async function loadAdminBooks() {
+  const list = $('adminBooksList');
+  if (!list || !getAccessToken()) return;
+
+  list.replaceChildren(createTextElement('p', 'muted', 'Ro‘yxat yuklanmoqda...'));
+
+  try {
+    const result = await apiRequest('/api/books');
+    renderAdminBooks(Array.isArray(result.books) ? result.books : []);
+  } catch (error) {
+    list.replaceChildren(createTextElement(
+      'p',
+      'form-status is-error',
+      apiErrorMessage(error, 'admin-books')
+    ));
+  }
+}
+
+async function saveBookFromForm(event) {
+  event.preventDefault();
+
+  const pdf = $('bookPdf').files[0] || null;
+  const cover = $('bookCover').files[0] || null;
+
+  if (pdf && (pdf.type !== 'application/pdf' || pdf.size > 20 * 1024 * 1024)) {
+    setStatus($('bookFormStatus'), 'PDF faylni tekshiring: faqat PDF, 20 MB gacha.', 'error');
+    return;
+  }
+
+  if (cover && (
+    !['image/jpeg', 'image/png', 'image/webp'].includes(cover.type) ||
+    cover.size > 4 * 1024 * 1024
+  )) {
+    setStatus($('bookFormStatus'), 'Muqova JPG, PNG yoki WebP bo‘lishi va 4 MB dan oshmasligi kerak.', 'error');
+    return;
+  }
+
+  const button = $('saveBookButton');
+  setBusy(button, true, 'Kitob saqlanmoqda...', 'Kitobni saqlash');
+  setStatus($('bookFormStatus'), '');
+
+  let createdBookId = null;
+
+  try {
+    const result = await apiRequest('/api/books', {
+      method: 'POST',
+      body: {
+        title: $('bookTitle').value.trim(),
+        author: $('bookAuthor').value.trim(),
+        language: $('bookLanguage').value,
+        category: $('bookCategory').value,
+        summary: $('bookSummary').value.trim(),
+        bodyText: $('bookBodyText').value.trim()
+      }
+    });
+
+    createdBookId = result.book.id;
+
+    if (cover) {
+      setStatus($('bookFormStatus'), 'Muqova Backblaze B2 ga yuklanmoqda...');
+      const path = '/api/books/' + encodeURIComponent(createdBookId) +
+        '/files/cover?filename=' + encodeURIComponent(cover.name);
+      await apiUploadFile(path, cover);
+    }
+
+    if (pdf) {
+      setStatus($('bookFormStatus'), 'PDF fayl Backblaze B2 ga yuklanmoqda...');
+      const path = '/api/books/' + encodeURIComponent(createdBookId) +
+        '/files/pdf?filename=' + encodeURIComponent(pdf.name);
+      await apiUploadFile(path, pdf);
+    }
+
+    $('bookForm').reset();
+    setStatus($('bookFormStatus'), 'Kitob MongoDB bazasiga saqlandi.', 'success');
+    await Promise.all([loadCatalog(), loadAdminBooks()]);
+  } catch (error) {
+    if (createdBookId) {
+      await apiRequest('/api/books/' + encodeURIComponent(createdBookId), {
+        method: 'DELETE'
+      }).catch(() => undefined);
+    }
+
+    setStatus($('bookFormStatus'), apiErrorMessage(error, 'book'), 'error');
+  } finally {
+    setBusy(button, false, 'Kitob saqlanmoqda...', 'Kitobni saqlash');
+  }
+}
+
+$('bookSearch').addEventListener('input', () => {
+  window.clearTimeout(catalogSearchTimer);
+  catalogSearchTimer = window.setTimeout(() => void loadCatalog(), 250);
+});
+
+$('bookCategoryFilter').addEventListener('change', () => void loadCatalog());
+$('refreshBooksButton').addEventListener('click', () => void loadCatalog());
+$('refreshAdminBooksButton').addEventListener('click', () => void loadAdminBooks());
+$('bookForm').addEventListener('submit', saveBookFromForm);
+$('closeBookDialog').addEventListener('click', closeBookDialog);
+
+$('bookDialog').addEventListener('click', (event) => {
+  if (event.target === $('bookDialog')) closeBookDialog();
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !$('bookDialog').classList.contains('is-hidden')) {
+    closeBookDialog();
+  }
+});
+
+
 window.addEventListener('hashchange', updateRoute);
 
 updateRoute();
+void loadCatalog();

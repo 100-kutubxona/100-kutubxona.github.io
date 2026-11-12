@@ -117,7 +117,13 @@ async function restoreSession() {
 
 function updateRoute() {
   const isSetup = window.location.hash === '#setup';
-  showView(window.location.hash === '#catalog' ? 'catalog' : 'librarian');
+  const isLibrarian = window.location.hash === '#admin' || isSetup;
+
+  showView(isLibrarian ? 'librarian' : 'catalog');
+
+  if (!isLibrarian) {
+    return;
+  }
 
   if (isSetup && !getAccessToken()) {
     showAuthPanel('setup');
@@ -172,7 +178,7 @@ loginForm.addEventListener('submit', async (event) => {
     saveAccessToken(result.accessToken);
     loginForm.reset();
     showAccount(result.user);
-    window.location.hash = 'admin';
+    window.history.replaceState(null, '', '#admin');
   } catch (error) {
     setStatus($('loginStatus'), apiErrorMessage(error, 'login'), 'error');
   } finally {
@@ -197,7 +203,7 @@ setupForm.addEventListener('submit', async (event) => {
     });
 
     setupForm.reset();
-    window.location.hash = 'admin';
+    window.history.replaceState(null, '', '#admin');
     showLogin('Hisob yaratildi. Endi yangi login va parolingiz bilan kiring.', 'success');
   } catch (error) {
     setStatus($('setupStatus'), apiErrorMessage(error, 'setup'), 'error');
@@ -216,19 +222,11 @@ logoutButton.addEventListener('click', async () => {
   } finally {
     clearAccessToken();
     logoutButton.disabled = false;
-    window.location.hash = 'admin';
+    window.history.replaceState(null, '', '#admin');
     showLogin('Tizimdan chiqdingiz.', 'success');
   }
 });
 
 window.addEventListener('hashchange', updateRoute);
 
-if (window.location.hash === '#setup') {
-  updateRoute();
-} else {
-  showView('catalog');
-  showAuthPanel('login');
-  if (getAccessToken()) {
-    void restoreSession();
-  }
-}
+updateRoute();

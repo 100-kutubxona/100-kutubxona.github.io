@@ -349,6 +349,10 @@ a:hover {
   color: var(--success);
 }
 
+.form-status.is-warning {
+  color: #8a5a10;
+}
+
 .panel-footnote {
   display: flex;
   gap: 6px;

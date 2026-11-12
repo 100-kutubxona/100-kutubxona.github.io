@@ -35,6 +35,7 @@ function setStatus(element, message, kind = '') {
   element.textContent = message;
   element.classList.toggle('is-error', kind === 'error');
   element.classList.toggle('is-success', kind === 'success');
+  element.classList.toggle('is-warning', kind === 'warning');
 }
 
 function setBusy(button, busy, busyText, normalText) {
@@ -62,6 +63,7 @@ function apiErrorMessage(error, context) {
     admin_required: 'Taklif havolasini faqat administrator yarata oladi.',
     invalid_invitation: 'Taklif havolasi noto‘g‘ri, eskirgan yoki allaqachon ishlatilgan.',
     too_many_invitation_attempts: 'Taklifni tekshirish urinishlari ko‘p bo‘ldi. Keyinroq qayta urinib ko‘ring.',
+    file_replacement_conflict: 'Fayl boshqa sessiyada yangilangan. Ro‘yxatni yangilab, qayta urinib ko‘ring.',
     invalid_title: 'Kitob nomini to‘g‘ri kiriting.',
     invalid_author: 'Muallif nomi juda uzun yoki noto‘g‘ri.',
     invalid_language: 'Kitob tilini tekshiring.',
@@ -820,6 +822,7 @@ async function saveBookFromForm(event) {
 
   let createdBookId = null;
   let savedBookId = targetId;
+  const cleanupWarnings = [];
 
   try {
     const payload = {
@@ -848,25 +851,43 @@ async function saveBookFromForm(event) {
       setStatus($('bookFormStatus'), 'Muqova Backblaze B2 ga yuklanmoqda...');
       const path = '/api/books/' + encodeURIComponent(savedBookId) +
         '/files/cover?filename=' + encodeURIComponent(cover.name);
-      await apiUploadFile(path, cover);
+      const uploadResult = await apiUploadFile(path, cover);
+
+      if (uploadResult?.file?.cleanupPending) {
+        cleanupWarnings.push('eski muqova nusxasini o‘chirish yakunlanmadi');
+      }
     }
 
     if (pdf) {
       setStatus($('bookFormStatus'), 'PDF fayl Backblaze B2 ga yuklanmoqda...');
       const path = '/api/books/' + encodeURIComponent(savedBookId) +
         '/files/pdf?filename=' + encodeURIComponent(pdf.name);
-      await apiUploadFile(path, pdf);
+      const uploadResult = await apiUploadFile(path, pdf);
+
+      if (uploadResult?.file?.cleanupPending) {
+        cleanupWarnings.push('eski PDF nusxasini o‘chirish yakunlanmadi');
+      }
     }
 
     $('bookForm').reset();
     showBookFormMode(false);
-    setStatus(
-      $('bookFormStatus'),
-      isEditing
-        ? 'Kitob ma’lumotlari yangilandi. Kitobning QR-kodi o‘zgarmaydi.'
-        : 'Kitob saqlandi. Uning doimiy QR-kodi yaratildi.',
-      'success'
-    );
+
+    if (cleanupWarnings.length > 0) {
+      setStatus(
+        $('bookFormStatus'),
+        'Yangi fayl faol. Ammo ' + cleanupWarnings.join(' va ') +
+          '. Backblaze kalitiga fayl versiyalarini o‘chirish huquqi berilishi kerak.',
+        'warning'
+      );
+    } else {
+      setStatus(
+        $('bookFormStatus'),
+        isEditing
+          ? 'Kitob ma’lumotlari yangilandi, eski fayllar almashtirildi va tozalandi. QR-kod o‘zgarmadi.'
+          : 'Kitob saqlandi. Uning doimiy QR-kodi yaratildi.',
+        'success'
+      );
+    }
 
     await Promise.all([loadCatalog(), loadAdminBooks()]);
     if (savedBookId) {
@@ -880,7 +901,7 @@ async function saveBookFromForm(event) {
     }
 
     const message = isEditing
-      ? 'Ma’lumotlar saqlangan bo‘lishi mumkin, ammo fayl yuklashda xatolik yuz berdi. Eski fayl saqlanadi. ' + apiErrorMessage(error, 'book')
+      ? 'Ba’zi ma’lumotlar yoki fayllar saqlangan bo‘lishi mumkin. Katalogdagi yozuvni tekshiring. ' + apiErrorMessage(error, 'book')
       : apiErrorMessage(error, 'book');
 
     setStatus($('bookFormStatus'), message, 'error');

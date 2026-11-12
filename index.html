@@ -83,15 +83,14 @@
         </form>
 
         <div class="panel-footnote">
-          <span>Birinchi marta kiryapsizmi?</span>
-          <a href="#setup">Kutubxonachi hisobini sozlash</a>
+          <span>Yangi foydalanuvchi uchun administrator taklif havolasini yaratadi.</span>
         </div>
       </div>
 
       <div id="setupPanel" class="auth-panel is-hidden">
         <div class="panel-heading">
-          <h3>Birinchi hisobni sozlash</h3>
-          <p>Bu jarayon faqat bir marta bajariladi. Hisobni kutubxonachi o‘zi yaratishi kerak.</p>
+          <h3>Birinchi administrator hisobini sozlash</h3>
+          <p>Bu maxsus boshlang‘ich sozlash bo‘lib, faqat bir marta ishlaydi.</p>
         </div>
 
         <form id="setupForm" class="auth-form">
@@ -130,17 +129,63 @@
       <div id="accountPanel" class="auth-panel is-hidden">
         <div class="panel-heading">
           <p class="eyebrow">MUVAFFAQIYATLI KIRISH</p>
-          <h3>Kutubxonachi hisobi</h3>
+          <h3>Shaxsiy hisob</h3>
           <p id="accountName" class="account-name"></p>
+          <span id="accountRole" class="role-label"></span>
         </div>
         <div class="account-notice">
-          Hisob tasdiqlandi. Kitob qo‘shish, tahrirlash va fayl yuklash boshqaruv vositalari keyingi bosqichda shu bo‘limga ulanadi.
+          Hisob tasdiqlandi. Bu login faqat sizga tegishli. Parolingizni boshqa foydalanuvchilarga bermang.
+        </div>
+
+        <div id="invitationTools" class="invitation-tools is-hidden">
+          <div class="panel-heading compact-heading">
+            <h3>Yangi foydalanuvchiga kirish huquqini berish</h3>
+            <p>Bir martalik havola yarating. Ikkinchi foydalanuvchi o‘z login va parolini mustaqil tanlaydi.</p>
+          </div>
+          <button class="primary-button" type="button" id="createInvitationButton">Taklif havolasini yaratish</button>
+          <div id="invitationResult" class="is-hidden">
+            <label class="invite-url-label" for="invitationUrl">Bir martalik taklif havolasi</label>
+            <input id="invitationUrl" class="invite-url-input" type="text" readonly>
+            <button class="secondary-button" type="button" id="copyInvitationButton">Havolani nusxalash</button>
+            <p class="session-note">Havola 30 daqiqadan keyin tugaydi va faqat bir marta ishlaydi. Uni faqat kerakli odamga yuboring.</p>
+          </div>
+          <p id="invitationStatus" class="form-status" role="status" aria-live="polite"></p>
         </div>
         <div class="account-actions">
           <span class="session-note">Sessiya 8 soatgacha amal qiladi.</span>
           <button class="secondary-button" type="button" id="logoutButton">Tizimdan chiqish</button>
         </div>
         <p id="accountStatus" class="form-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <div id="invitePanel" class="auth-panel is-hidden">
+        <div class="panel-heading">
+          <h3>O‘z hisobingizni yarating</h3>
+          <p>Taklif havolasi tasdiqlandi. O‘zingiz uchun alohida login va kuchli parol tanlang.</p>
+        </div>
+
+        <form id="inviteForm" class="auth-form">
+          <input id="inviteToken" name="invitationToken" type="hidden">
+          <div class="form-field">
+            <label for="inviteUsername">Yangi login</label>
+            <input id="inviteUsername" name="username" type="text" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]{3,32}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="O‘zingiz tanlagan login">
+            <small>3–32 belgi: lotin harflari, raqamlar, nuqta, chiziqcha yoki pastki chiziq.</small>
+          </div>
+          <div class="form-field">
+            <label for="invitePassword">Yangi parol</label>
+            <input id="invitePassword" name="password" type="password" required minlength="12" maxlength="128" autocomplete="new-password" placeholder="Kamida 12 ta belgi">
+          </div>
+          <div class="form-field">
+            <label for="invitePasswordConfirm">Parolni qayta kiriting</label>
+            <input id="invitePasswordConfirm" name="passwordConfirm" type="password" required minlength="12" maxlength="128" autocomplete="new-password" placeholder="Parolni yana bir marta kiriting">
+          </div>
+          <button class="primary-button" type="submit" id="inviteSubmitButton">Hisobni yaratish</button>
+          <p id="inviteStatus" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+
+        <div class="panel-footnote">
+          <a href="#admin">Kirish sahifasiga qaytish</a>
+        </div>
       </div>
     </section>
   </main>

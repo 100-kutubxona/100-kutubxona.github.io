@@ -343,6 +343,7 @@ inviteForm.addEventListener('submit', async (event) => {
     });
 
     inviteForm.reset();
+    clearAccessToken();
     window.history.replaceState(null, '', '#admin');
     showLogin('Shaxsiy hisob yaratildi. Endi o‘z loginingiz va parolingiz bilan kiring.', 'success');
   } catch (error) {
